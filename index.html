@@ -80,13 +80,73 @@ details.section > summary .desc { color: rgb(95, 100, 112); font-size: 12px; fon
 .source-tag { font-size: 11px; color: rgb(95, 100, 112); margin-left: 6px; }
 .footer { color: rgb(138, 142, 152); font-size: 12px; margin-top: 24px; text-align: center; }
 kbd { font: 11px ui-monospace, monospace; background: rgb(236, 236, 239); padding: 1px 5px; border-radius: 4px; }
-
+ 
 .snapshot-banner {
   background: #fff5e6; border: 1px solid #fdab3d; color: #8a4a13;
   padding: 8px 14px; border-radius: 8px; margin-bottom: 14px;
   font-size: 13px;
 }
 .snapshot-banner b { color: #5a2e08; }
+ 
+/* Stat dashboard */
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 14px 0 14px;
+}
+.stat-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e4e6ec;
+  border-radius: 12px;
+  padding: 14px 16px 12px 18px;
+  overflow: hidden;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.stat-card:hover {
+  border-color: #d0d4dc;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.04);
+}
+.stat-card::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: #d6d8de;
+}
+.stat-card.stat-open::before     { background: linear-gradient(180deg, #1d4ed8, #2563eb); }
+.stat-card.stat-resolved::before { background: linear-gradient(180deg, #1d6f3f, #22a559); }
+.stat-card.stat-filtered::before { background: linear-gradient(180deg, #8a8e98, #b0b4be); }
+.stat-card.stat-shown::before    { background: linear-gradient(180deg, #6b21a8, #8b5cf6); }
+ 
+.stat-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .05em;
+  color: #5f6470;
+}
+.stat-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #d6d8de;
+}
+.stat-open     .stat-dot { background: #1d4ed8; }
+.stat-resolved .stat-dot { background: #22a559; }
+.stat-filtered .stat-dot { background: #8a8e98; }
+.stat-shown    .stat-dot { background: #8b5cf6; }
+ 
+.stat-value {
+  font-size: 30px; font-weight: 700; color: #1d1f23;
+  line-height: 1.05; margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.stat-sub {
+  font-size: 11.5px; color: #8a8e98; margin-top: 3px;
+}
+ 
+@media (max-width: 720px) {
+  .dashboard { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
 </head>
 <body>
@@ -96,9 +156,30 @@ kbd { font: 11px ui-monospace, monospace; background: rgb(236, 236, 239); paddin
     <span class="subtitle">Static report — data captured 5/12/2026, 11:10:48 AM</span>
   </header>
   <div class="snapshot-banner"><b>Note:</b> This is a frozen snapshot. Data is not live. Refresh by re-exporting from the source dashboard.</div>
+  <div class="dashboard" aria-label="Snapshot summary">
+    <div class="stat-card stat-open">
+      <div class="stat-head"><span class="stat-dot"></span> Open Tickets</div>
+      <div class="stat-value" id="stat-open" data-value="80">80</div>
+      <div class="stat-sub">in the queue</div>
+    </div>
+    <div class="stat-card stat-resolved">
+      <div class="stat-head"><span class="stat-dot"></span> Resolved · 48h</div>
+      <div class="stat-value" id="stat-resolved" data-value="0">0</div>
+      <div class="stat-sub">past two days</div>
+    </div>
+    <div class="stat-card stat-filtered">
+      <div class="stat-head"><span class="stat-dot"></span> Filtered Out</div>
+      <div class="stat-value" id="stat-filtered" data-value="0">0</div>
+      <div class="stat-sub">test &amp; marketing</div>
+    </div>
+    <div class="stat-card stat-shown">
+      <div class="stat-head"><span class="stat-dot"></span> Now Showing</div>
+      <div class="stat-value" id="stat-shown" data-value="20">20</div>
+      <div class="stat-sub">in this view</div>
+    </div>
+  </div>
   <div class="toolbar">
     <input id="search" type="search" placeholder="Filter by name, company, agent, or status…" autocomplete="off" />
-    <span class="pill muted">80 open · 0 resolved 48h · 0 filtered (test/marketing) · 20 shown</span>
   </div>
   <div id="content">
       <details class="section urgent" data-cat="URGENT">
@@ -564,13 +645,20 @@ kbd { font: 11px ui-monospace, monospace; background: rgb(236, 236, 239); paddin
   });
   // Simple text filter that hides tickets not matching
   var searchEl = document.getElementById("search");
+  var shownEl  = document.getElementById("stat-shown");
+  var baselineShown = shownEl ? parseInt(shownEl.dataset.value || shownEl.textContent, 10) : 0;
   if (searchEl) {
     searchEl.addEventListener("input", function() {
       var q = searchEl.value.trim().toLowerCase();
+      var visible = 0;
       document.querySelectorAll(".ticket").forEach(function(t) {
-        if (!q) { t.style.display = ""; return; }
-        t.style.display = t.textContent.toLowerCase().indexOf(q) >= 0 ? "" : "none";
+        var match = !q || t.textContent.toLowerCase().indexOf(q) >= 0;
+        t.style.display = match ? "" : "none";
+        if (match) visible++;
       });
+      if (shownEl) {
+        shownEl.textContent = q ? visible : baselineShown;
+      }
     });
   }
 })();
